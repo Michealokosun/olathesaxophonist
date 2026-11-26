@@ -17,7 +17,7 @@ export default function SiteFooter() {
       <span>PROFESSIONAL. SOULFUL. UNFORGETTABLE.</span>
       <div>
         <a href={instagram} target="_blank" rel="noreferrer">
-          INSTAGRAM @OLATHESAXOPHONIST ↗
+          INSTAGRAM @OLATHESAXOPHONIST
         </a>
         <a href="#booking">BOOKING POLICY</a>
       </div>

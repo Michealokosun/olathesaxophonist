@@ -131,7 +131,6 @@ export default function AvailabilitySection() {
               </>
             ) : (
               <>
-                <span className="result-spark">✳</span>
                 <p>Select a highlighted date to ask about it.</p>
               </>
             )}
