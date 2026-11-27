@@ -54,12 +54,6 @@ export const packages = [
   ],
 ] as const;
 
-export const openDates: Record<string, number[]> = {
-  "2026-11": [26, 28, 29],
-  "2026-12": [2, 5, 6, 12, 13, 18, 20, 27],
-  "2027-01": [3, 9, 10, 16, 17, 23, 30],
-};
-
 export const months = [
   "January",
   "February",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowUpRight,
@@ -8,19 +8,97 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { instagram, months, openDates, whatsapp } from "@/features/home/data";
+import { instagram, months, whatsapp } from "@/features/home/data";
 import { scrollReveal } from "@/features/home/scroll-reveal";
 
+type AvailabilityResponse = {
+  bookedDates: string[];
+};
+
+function isAvailabilityResponse(value: unknown): value is AvailabilityResponse {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "bookedDates" in value &&
+    Array.isArray(value.bookedDates) &&
+    value.bookedDates.every((date) => typeof date === "string")
+  );
+}
+
 export default function AvailabilitySection() {
-  const [month, setMonth] = useState(new Date(2026, 10, 1));
+  const [month, setMonth] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
   const [selected, setSelected] = useState<number | null>(null);
+  const [bookedDates, setBookedDates] = useState<Set<string>>(new Set());
+  const [availabilityStatus, setAvailabilityStatus] = useState<
+    "loading" | "ready" | "error"
+  >("loading");
   const key = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}`;
   const firstDay = new Date(month.getFullYear(), month.getMonth(), 1).getDay();
   const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+  const todayKey = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Africa/Lagos",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
   const whatsappMessage = selected
     ? `Hello Ola, I’d like to make reservation  about booking you for ${months[month.getMonth()]} ${selected}, ${month.getFullYear()} and what the next steps are. Thank you!`
     : "";
   const whatsappLink = `${whatsapp}?text=${encodeURIComponent(whatsappMessage)}`;
+
+  useEffect(() => {
+    let activeController: AbortController | undefined;
+    let initialLoad = true;
+
+    const loadAvailability = async () => {
+      activeController?.abort();
+      const controller = new AbortController();
+      activeController = controller;
+
+      if (initialLoad) {
+        setAvailabilityStatus("loading");
+        initialLoad = false;
+      }
+
+      try {
+        const response = await fetch(`/api/availability?month=${key}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new Error(`Availability request failed (${response.status}).`);
+        }
+
+        const result: unknown = await response.json();
+        if (!isAvailabilityResponse(result)) {
+          throw new Error("Availability response had an invalid format.");
+        }
+
+        setBookedDates(new Set(result.bookedDates));
+        setAvailabilityStatus("ready");
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        console.error("Could not load Google Calendar availability.", error);
+        setAvailabilityStatus("error");
+      }
+    };
+
+    void loadAvailability();
+    const refreshInterval = window.setInterval(() => {
+      void loadAvailability();
+    }, 300_000);
+    window.addEventListener("focus", loadAvailability);
+
+    return () => {
+      activeController?.abort();
+      window.clearInterval(refreshInterval);
+      window.removeEventListener("focus", loadAvailability);
+    };
+  }, [key]);
+
   const shiftMonth = (by: number) => {
     setMonth(new Date(month.getFullYear(), month.getMonth() + by, 1));
     setSelected(null);
@@ -66,7 +144,7 @@ export default function AvailabilitySection() {
         <motion.div className="calendar-card" {...scrollReveal}>
           <div className="calendar-head">
             <div>
-              <small>AVAILABILITY PREVIEW</small>
+              <small>LIVE GOOGLE CALENDAR</small>
               <h3>
                 {months[month.getMonth()]} <span>{month.getFullYear()}</span>
               </h3>
@@ -94,13 +172,27 @@ export default function AvailabilitySection() {
             ))}
             {Array.from({ length: days }, (_, index) => {
               const day = index + 1;
-              const isAvailable = (openDates[key] ?? []).includes(day);
+              const dateKey = `${key}-${String(day).padStart(2, "0")}`;
+              const isBooked = bookedDates.has(dateKey);
+              const isAvailable =
+                availabilityStatus === "ready" &&
+                !isBooked &&
+                dateKey >= todayKey;
+              const dateStatus =
+                availabilityStatus !== "ready"
+                  ? "availability not loaded"
+                  : isBooked
+                    ? "booked"
+                    : isAvailable
+                      ? "available"
+                      : "unavailable";
               return (
                 <button
                   key={day}
                   disabled={!isAvailable}
                   className={`${isAvailable ? "open-date" : "booked-date"} ${selected === day ? "selected-date" : ""}`}
                   onClick={() => setSelected(day)}
+                  aria-label={`${months[month.getMonth()]} ${day}, ${month.getFullYear()}, ${dateStatus}`}
                 >
                   {day}
                   {isAvailable && <i />}
@@ -109,7 +201,14 @@ export default function AvailabilitySection() {
             })}
           </div>
           <div className="calendar-result">
-            {selected ? (
+            {availabilityStatus === "loading" ? (
+              <p role="status">Checking Google Calendar availability…</p>
+            ) : availabilityStatus === "error" ? (
+              <p role="alert">
+                Live availability could not be loaded. Please try again shortly
+                or message Ola directly.
+              </p>
+            ) : selected ? (
               <>
                 <span className="result-check">
                   <Check size={15} />
@@ -131,7 +230,7 @@ export default function AvailabilitySection() {
               </>
             ) : (
               <>
-                <p>Select a highlighted date to ask about it.</p>
+                <p>Select an available date to ask about it.</p>
               </>
             )}
           </div>

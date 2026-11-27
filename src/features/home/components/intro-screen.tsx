@@ -39,12 +39,7 @@ export default function IntroScreen() {
           Ola the Saxophonist
         </motion.span>
       </motion.div>
-      <img
-        className="intro-equalizer"
-        src="/equalizer.gif"
-        alt=""
-        aria-hidden="true"
-      />
+     
     </motion.div>
   );
 }
