@@ -11,6 +11,7 @@ import {
 import { scrollReveal } from "@/features/home/scroll-reveal";
 
 const videos = [
+  "supriseshow.mp4",
   "export_1795677350826.mp4",
   "v14044g50000d3hnv8fog65nfvtlnddg (1).mp4",
   "v14044g50000d97n5mvog65k9v0i2tk0 (1).mp4",
